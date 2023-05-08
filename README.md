@@ -10,7 +10,7 @@ Color Picker Client Sample App (Interoperates with the color pickers)
 
 Colors! is a color selector similar to that of Adobe Photoshop.
 
-![Screenshot](https://raw.github.com/jscipione/Colors/master/Colors\!.png)
+![Screenshot](https://raw.github.com/jscipione/colorPickerPanel/master/images/Colors.png)
 
 # License
 
