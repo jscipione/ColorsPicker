@@ -7,7 +7,7 @@
 ## Application Specific Settings ---------------------------------------------
 
 # specify the name of the binary
-NAME = ColorsPicker
+NAME = Colors!
 
 # specify the type of binary
 #	APP:	Application
@@ -88,7 +88,7 @@ LIBPATHS =
 #	additional paths to look for system headers
 #	thes use the form: #include <header>
 #	source file directories are NOT auto-included here
-SYSTEM_INCLUDE_PATHS = $(shell findpaths -e B_FIND_PATH_HEADERS_DIRECTORY private/interface)
+SYSTEM_INCLUDE_PATHS = $(shell findpaths -e B_FIND_PATH_HEADERS_DIRECTORY private/shared)
 
 #	additional paths to look for local headers
 #	thes use the form: #include "header"
@@ -131,7 +131,7 @@ SYMBOLS =
 DEBUGGER = 
 
 #	specify additional compiler flags for all files
-COMPILER_FLAGS= -Woverloaded-virtual -funsigned-bitfields -Wwrite-strings 
+COMPILER_FLAGS= -funsigned-bitfields -Wwrite-strings
 
 #	specify additional linker flags
 LINKER_FLAGS = 
