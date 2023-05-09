@@ -1,0 +1,19 @@
+SubDir HAIKU_TOP src add-ons color_pickers colorspicker ;
+
+UsePrivateHeaders app interface shared ;
+
+AddResources ColorsPicker : Colors.rdef ;
+
+Application ColorsPicker :
+	ColorField.cpp
+	ColorsView.cpp
+	ColorPreview.cpp
+	ColorsApplication.cpp
+	ColorSelector.cpp
+	ColorSlider.cpp
+	ColorsWindow.cpp
+	convert_rgb_hsv.cpp
+	OutOfGamutSelector.cpp
+	WebSafeSelector.cpp
+	: be shared [ TargetLibstdc++ ] [ TargetLibsupc++ ]
+;
