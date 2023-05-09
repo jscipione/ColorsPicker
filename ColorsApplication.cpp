@@ -78,7 +78,7 @@ ColorsApplication::AboutRequested()
 void
 ColorsApplication::MessageReceived(BMessage* message)
 {
-	if (message->what == kInitiateConnection) {
+	if (message->what == B_PICKER_INITIATE_CONNECTION) {
 		// This is the initial open message that ModuleProxy::Invoke
 		// is sending us. Pass it on to the new color picker dialog
 		// where all the details will be found.
