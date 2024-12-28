@@ -121,7 +121,7 @@ void
 WebSafeSelector::Show()
 {
 	ColorSelector::Show();
-	SetToolTip("Click to select the nearest web safe color");
+	SetToolTip("Select the nearest web-safe color");
 }
 
 

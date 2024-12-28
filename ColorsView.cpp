@@ -1,6 +1,7 @@
 /*
+ * Copyright 2012-2023 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
- * Copyright 2001-2008 Werner Freytag.
+ * Copyright 2001-2008 Werner Freytag. All Rights Reserved.
  * Distributed under the terms of the MIT License.
  *
  * Original Author:
@@ -22,9 +23,11 @@
 #include <Font.h>
 #include <InterfaceDefs.h>
 #include <LayoutBuilder.h>
+#include <Messenger.h>
 #include <Message.h>
 #include <RadioButton.h>
 #include <Resources.h>
+#include <PickerProtocol.h>
 #include <Screen.h>
 #include <Size.h>
 #include <SpaceLayoutItem.h>
@@ -59,11 +62,12 @@ ColorsView::ColorsView()
 	fPointer0(NULL),
 	fPointer1(NULL),
 	fPointer2(NULL),
-	fMouseDown(false),
-	fMouseOffset(BPoint(0, 0)),
-	fRequiresUpdate(false)
+	fMouseButtons(0),
+	fMouseOffset(B_ORIGIN),
+	fRequiresUpdate(false),
+	fInitialColorSet(false)
 {
-	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
 
 	BMessage* settings = static_cast<ColorsApplication*>(be_app)->Settings();
 
@@ -180,13 +184,11 @@ ColorsView::~ColorsView()
 void
 ColorsView::AttachedToWindow()
 {
-	BView::AttachedToWindow();
-
-	rgb_color selected_color = {
+	rgb_color selected_color = make_color(
 		(int)(fRed * 255),
 		(int)(fGreen * 255),
 		(int)(fBlue * 255), 255
-	};
+	);
 
 	fColorField->SetMarkerToColor(selected_color);
 	fColorField->SetTarget(this);
@@ -242,181 +244,189 @@ ColorsView::AttachedToWindow()
 
 
 void
-ColorsView::MessageReceived(BMessage *message)
+ColorsView::MessageReceived(BMessage* message)
 {
 	if (message->WasDropped()) {
+		char* name;
+		type_code type;
 		rgb_color* color;
 		ssize_t size;
-		if (message->FindData("RGBColor", B_RGB_COLOR_TYPE,
-				(const void**)&color, &size) == B_OK) {
+		if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) == B_OK
+			&& message->FindData(name, type, (const void**)&color, &size) == B_OK) {
 			SetColor(*color);
-			_ForwardColorChangeToWindow(*color);
 		}
-	} else {
-		switch (message->what) {
-			case MSG_COLOR_FIELD:
-			{
-				float value1;
-				float value2;
-				value1 = message->FindFloat("value");
-				value2 = message->FindFloat("value", 1);
-				_UpdateColor(-1, value1, value2);
-				break;
-			}
+		return;
+	}
 
-			case MSG_COLOR_SLIDER:
-			{
-				float value;
-				message->FindFloat("value", &value);
-				_UpdateColor(value, -1, -1);
-				break;
-			}
+	switch (message->what) {
+		case MSG_COLOR_FIELD:
+		{
+			float value1;
+			float value2;
+			value1 = message->FindFloat("value");
+			value2 = message->FindFloat("value", 1);
+			_UpdateColor(-1, value1, value2);
+			break;
+		}
 
-			case MSG_COLOR_PREVIEW:
-			case MSG_COLOR_SELECTOR:
-			{
-				rgb_color* color;
-				ssize_t numBytes;
-				if (message->FindData("be:value", B_RGB_COLOR_TYPE,
-						(const void **)&color, &numBytes) == B_OK) {
-					color->alpha = 255;
-					SetColor(*color);
-					_ForwardColorChangeToWindow(*color);
-				}
-				break;
-			}
+		case MSG_COLOR_SLIDER:
+		{
+			float value;
+			message->FindFloat("value", &value);
+			_UpdateColor(value, -1, -1);
+			break;
+		}
 
-			case MSG_RADIOBUTTON:
-				SetColorMode(H_SELECTED);
-				break;
+		case MSG_RADIOBUTTON:
+			SetColorMode(H_SELECTED);
+			break;
 
-			case MSG_RADIOBUTTON + 1:
-				SetColorMode(S_SELECTED);
-				break;
+		case MSG_RADIOBUTTON + 1:
+			SetColorMode(S_SELECTED);
+			break;
 
-			case MSG_RADIOBUTTON + 2:
-				SetColorMode(V_SELECTED);
-				break;
+		case MSG_RADIOBUTTON + 2:
+			SetColorMode(V_SELECTED);
+			break;
 
-			case MSG_RADIOBUTTON + 3:
-				SetColorMode(R_SELECTED);
-				break;
+		case MSG_RADIOBUTTON + 3:
+			SetColorMode(R_SELECTED);
+			break;
 
-			case MSG_RADIOBUTTON + 4:
-				SetColorMode(G_SELECTED);
-				break;
+		case MSG_RADIOBUTTON + 4:
+			SetColorMode(G_SELECTED);
+			break;
 
-			case MSG_RADIOBUTTON + 5:
-				SetColorMode(B_SELECTED);
-				break;
+		case MSG_RADIOBUTTON + 5:
+			SetColorMode(B_SELECTED);
+			break;
 
-			case MSG_TEXTCONTROL:
-			case MSG_TEXTCONTROL + 1:
-			case MSG_TEXTCONTROL + 2:
-			case MSG_TEXTCONTROL + 3:
-			case MSG_TEXTCONTROL + 4:
-			case MSG_TEXTCONTROL + 5:
-			{
-				int nr = message->what - MSG_TEXTCONTROL;
-				int value = atoi(fTextControl[nr]->Text());
-				char string[4];
+		case MSG_TEXTCONTROL:
+		case MSG_TEXTCONTROL + 1:
+		case MSG_TEXTCONTROL + 2:
+		case MSG_TEXTCONTROL + 3:
+		case MSG_TEXTCONTROL + 4:
+		case MSG_TEXTCONTROL + 5:
+		{
+			int nr = message->what - MSG_TEXTCONTROL;
+			int value = atoi(fTextControl[nr]->Text());
+			char string[4];
 
-				switch (nr) {
-					case 0:
-					{
-						value %= 360;
-						sprintf(string, "%d", value);
-						fHue = (float)value / 60;
-						break;
-					}
-
-					case 1:
-					{
-						value = min_c(value, 100);
-						sprintf(string, "%d", value);
-						fSat = (float)value / 100;
-						break;
-					}
-
-					case 2:
-					{
-						value = min_c(value, 100);
-						sprintf(string, "%d", value);
-						fVal = (float)value / 100;
-						break;
-					}
-
-					case 3:
-					{
-						value = min_c(value, 255);
-						sprintf(string, "%d", value);
-						fRed = (float)value / 255;
-						break;
-					}
-
-					case 4:
-					{
-						value = min_c(value, 255);
-						sprintf(string, "%d", value);
-						fGreen = (float)value / 255;
-						break;
-					}
-
-					case 5:
-					{
-						value = min_c(value, 255);
-						sprintf(string, "%d", value);
-						fBlue = (float)value / 255;
-						break;
-					}
+			switch (nr) {
+				case 0:
+				{
+					value %= 360;
+					sprintf(string, "%d", value);
+					fHue = (float)value / 60;
+					break;
 				}
 
-				if (nr < 3) {
-					// hsv-mode
-					HSV_to_RGB(fHue, fSat, fVal, fRed, fGreen, fBlue);
+				case 1:
+				{
+					value = min_c(value, 100);
+					sprintf(string, "%d", value);
+					fSat = (float)value / 100;
+					break;
 				}
 
-				rgb_color color = { round(fRed * 255), round(fGreen * 255),
-					round(fBlue * 255), 255 };
+				case 2:
+				{
+					value = min_c(value, 100);
+					sprintf(string, "%d", value);
+					fVal = (float)value / 100;
+					break;
+				}
 
+				case 3:
+				{
+					value = min_c(value, 255);
+					sprintf(string, "%d", value);
+					fRed = (float)value / 255;
+					break;
+				}
+
+				case 4:
+				{
+					value = min_c(value, 255);
+					sprintf(string, "%d", value);
+					fGreen = (float)value / 255;
+					break;
+				}
+
+				case 5:
+				{
+					value = min_c(value, 255);
+					sprintf(string, "%d", value);
+					fBlue = (float)value / 255;
+					break;
+				}
+			}
+
+			if (nr < 3) {
+				// hsv-mode
+				HSV_to_RGB(fHue, fSat, fVal, fRed, fGreen, fBlue);
+			}
+
+			rgb_color color = make_color(round(fRed * 255), round(fGreen * 255),
+				round(fBlue * 255), 255);
+
+			SetColor(color);
+			_ForwardColorChangeToWindow(color);
+			break;
+		}
+
+		case MSG_HEXTEXTCONTROL:
+		{
+			if (fHexTextControl->TextView()->TextLength() == 6) {
+				const char* string = fHexTextControl->TextView()->Text();
+				rgb_color color = { hexdec(string, 0), hexdec(string, 2),
+					hexdec(string, 4), 255 };
 				SetColor(color);
 				_ForwardColorChangeToWindow(color);
-				break;
 			}
-
-			case MSG_HEXTEXTCONTROL:
-			{
-				if (fHexTextControl->TextView()->TextLength() == 6) {
-					const char* string = fHexTextControl->TextView()->Text();
-					rgb_color color = { hexdec(string, 0), hexdec(string, 2),
-						hexdec(string, 4), 255 };
-					SetColor(color);
-					_ForwardColorChangeToWindow(color);
-				}
-				break;
-			}
-
-			case B_VALUE_CHANGED:
-			{
-				rgb_color* color;
-				ssize_t size;
-				if (message->FindData("be:value", B_RGB_COLOR_TYPE,
-						(const void**)&color, &size) == B_OK) {
-					bool isInitial = false;
-					if (message->FindBool("be:initialValue", &isInitial)
-							== B_OK && isInitial) {
-						fColorPreview->SetNewColor(*color);
-					} else
-						SetColor(*color);
-
-					Window()->PostMessage(message);
-				}
-				break;
-			}
-
-			default:
-				BView::MessageReceived(message);
+			break;
 		}
+
+		case MSG_COLOR_PREVIEW:
+		case MSG_COLOR_SELECTOR:
+		{
+			char* name;
+			type_code type;
+			rgb_color* color;
+			ssize_t size;
+			if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) == B_OK
+				&& message->FindData(name, type,
+					(const void**)&color, &size) == B_OK) {
+				color->alpha = 255;
+				SetColor(*color);
+				_ForwardColorChangeToWindow(*color);
+			}
+			break;
+		}
+
+		case B_VALUE_CHANGED:
+		{
+			char* name;
+			type_code type;
+			rgb_color* color;
+			ssize_t size;
+			if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) == B_OK
+				&& message->FindData(name, type, (const void**)&color, &size) == B_OK) {
+				SetColor(*color);
+
+				// check if initial color
+				if (!fInitialColorSet) {
+					color->alpha = 255;
+					fColorPreview->SetNewColor(*color);
+					fInitialColorSet = true;
+					break;
+				}
+			}
+			break;
+		}
+
+		default:
+			BView::MessageReceived(message);
 	}
 }
 
@@ -426,8 +436,10 @@ ColorsView::MouseDown(BPoint where)
 {
 	Window()->Activate();
 
-	if (Window()->CurrentMessage()->FindInt32("buttons")
-			== B_SECONDARY_MOUSE_BUTTON) {
+	fMouseButtons = Window()->CurrentMessage()->GetInt32("buttons", 0);
+	fMouseOffset = where;
+
+	if (fMouseButtons == B_SECONDARY_MOUSE_BUTTON) {
 		BPoint where;
 		Window()->CurrentMessage()->FindPoint("where", &where);
 		ConvertToScreen(&where);
@@ -436,9 +448,7 @@ ColorsView::MouseDown(BPoint where)
 		message.AddPoint("where", where);
 		Window()->PostMessage(&message);
 	} else {
-		fMouseDown = true;
-		fMouseOffset = where;
-
+		fMouseButtons = B_PRIMARY_MOUSE_BUTTON;
 		SetMouseEventMask(B_POINTER_EVENTS, B_NO_POINTER_HISTORY
 			| B_SUSPEND_VIEW_FOCUS | B_LOCK_WINDOW_FOCUS);
 
@@ -450,7 +460,7 @@ ColorsView::MouseDown(BPoint where)
 void
 ColorsView::MouseMoved(BPoint where, uint32 code, const BMessage *message)
 {
-	if (fMouseDown) {
+	if (fMouseButtons == B_PRIMARY_MOUSE_BUTTON) {
 		BPoint win_pos = Window()->Frame().LeftTop();
 		Window()->MoveTo(win_pos.x + where.x - fMouseOffset.x,
 			win_pos.y + where.y - fMouseOffset.y );
@@ -462,7 +472,8 @@ ColorsView::MouseMoved(BPoint where, uint32 code, const BMessage *message)
 void
 ColorsView::MouseUp(BPoint where)
 {
-	fMouseDown = false;
+	fMouseButtons = 0;
+
 	BView::MouseUp(where);
 }
 
@@ -606,25 +617,27 @@ ColorsView::_UpdateColor(float value, float value1, float value2)
 	else
 		HSV_to_RGB(fHue, fSat, fVal, fRed, fGreen, fBlue);
 
-	rgb_color color = { (int)(fRed * 255), (int)(fGreen * 255),
-		(int)(fBlue * 255), 255 };
+	rgb_color color = make_color((int)(fRed * 255), (int)(fGreen * 255),
+		(int)(fBlue * 255), 255);
 
 	fColorPreview->SetColor(color);
 	fOutOfGamutSelector->SetColor(color);
 	fWebSafeSelector->SetColor(color);
 
-	fRequiresUpdate = true;
-
 	_ForwardColorChangeToWindow(color);
+
+	fRequiresUpdate = true;
 }
 
 
 void
 ColorsView::_ForwardColorChangeToWindow(rgb_color color)
 {
-	BMessage forward = BMessage(B_VALUE_CHANGED);
+	BMessage forward(B_VALUE_CHANGED);
 	forward.AddData("be:value", B_RGB_COLOR_TYPE, &color, sizeof(color));
 	forward.AddInt64("when", (int64)system_time());
+	forward.AddPointer("be:source", (void*)this);
+	forward.AddMessenger("be:sender", BMessenger(this));
 	Window()->PostMessage(&forward);
 }
 

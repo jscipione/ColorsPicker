@@ -1,10 +1,12 @@
 /*
+ * Copyright 2012-2023 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag.
  * Distributed under the terms of the MIT License.
  *
  * Original Author:
  *		Werner Freytag <freytag@gmx.de>
+ *
  * Authors:
  *		Stephan Aßmus <superstippi@gmx.de>
  *		John Scipione <jscipione@gmail.com>
@@ -20,7 +22,9 @@
 
 #include <Alignment.h>
 #include <Bitmap.h>
+#include <Message.h>
 #include <MessageRunner.h>
+#include <PickerProtocol.h>
 #include <Size.h>
 #include <String.h>
 #include <Window.h>
@@ -89,17 +93,17 @@ ColorPreview::Draw(BRect updateRect)
 
 
 status_t
-ColorPreview::Invoke(BMessage *message)
+ColorPreview::Invoke(BMessage*)
 {
-	if (message == NULL)
-		message = Message();
+	rgb_color color = fColor;
+	size_t size = sizeof(color);
+	BMessage update(B_VALUE_CHANGED);
+	update.AddData("be:value", B_RGB_COLOR_TYPE, &color, size);
+	update.AddInt64("be:when", (int64)system_time());
+	update.AddPointer("be:source", (void*)Parent());
+	update.AddMessenger("be:sender", BMessenger(Parent()));
 
-	message->RemoveName("be:value");
-	message->AddData("be:value", B_RGB_COLOR_TYPE, &fColor, sizeof(fColor));
-	message->RemoveName("when");
-	message->AddInt64("when", (int64)system_time());
-
-	return BControl::Invoke(message);
+	return Window()->PostMessage(&update);
 }
 
 
@@ -112,19 +116,15 @@ ColorPreview::MessageReceived(BMessage* message)
 		GetMouse(&where, &buttons);
 
 		_DragColor(where);
-	} else {
-		char* nameFound;
-		type_code typeFound;
-		if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &nameFound, &typeFound)
-				!= B_OK) {
-			BControl::MessageReceived(message);
-			return;
-		}
+	} else if (message->WasDropped()) {
+		char* name;
+		type_code type;
+		if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) != B_OK)
+			return BControl::MessageReceived(message);
 
 		rgb_color* color;
-		ssize_t numBytes;
-		message->FindData(nameFound, typeFound, (const void **)&color,
-			&numBytes);
+		ssize_t size;
+		message->FindData(name, type, (const void**)&color, &size);
 
 		BPoint where;
 		bool droppedOnNewArea = false;
@@ -139,8 +139,9 @@ ColorPreview::MessageReceived(BMessage* message)
 		else
 			SetColor(*color);
 
-		Invoke();
-	}
+		Window()->PostMessage(message);
+	} else
+		BControl::MessageReceived(message);
 }
 
 
@@ -150,16 +151,16 @@ ColorPreview::MouseDown(BPoint where)
 	Window()->Activate();
 
 	fMouseDown = true;
-	fMessageRunner = new BMessageRunner(
-		this, new BMessage(MSG_MESSAGERUNNER), 300000, 1);
+	fMessageRunner = new BMessageRunner(this, new BMessage(MSG_MESSAGERUNNER),
+		300000, 1);
 
 	SetMouseEventMask(B_POINTER_EVENTS,
 		B_SUSPEND_VIEW_FOCUS | B_LOCK_WINDOW_FOCUS);
 
-	BRect rect = Bounds().InsetByCopy(2.0, 2.0);
-	rect.top = rect.bottom / 2 + 1;
+	BRect oldRect = Bounds().InsetByCopy(2.0, 2.0);
+	oldRect.top = oldRect.bottom / 2 + 1;
 
-	if (rect.Contains(where)) {
+	if (oldRect.Contains(where)) {
 		fColor = fOldColor;
 		Draw(Bounds());
 		Invoke();
@@ -199,6 +200,7 @@ ColorPreview::SetColor(rgb_color color)
 void
 ColorPreview::SetNewColor(rgb_color color)
 {
+	color.alpha = 255;
 	fColor = color;
 	fOldColor = color;
 
@@ -221,7 +223,7 @@ ColorPreview::_DragColor(BPoint where)
 		hexStr.Length());
 	message.AddData("RGBColor", B_RGB_COLOR_TYPE, &fColor, sizeof(fColor));
 
-	BRect rect(0.0f, 0.0f, 20.0f, 20.0f);
+	BRect rect(0.0f, 0.0f, 16.0f, 16.0f);
 
 	BBitmap* bitmap = new BBitmap(rect, B_RGB32, true);
 	bitmap->Lock();

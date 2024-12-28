@@ -9,6 +9,7 @@
 
 #include <Control.h>
 
+
 #define	MSG_COLOR_PREVIEW		'ColP'
 #define	MSG_MESSAGERUNNER		'MsgR'
 

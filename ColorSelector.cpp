@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Haiku, Inc. All Rights Reserved.
+ * Copyright 2012-2023 John Scipione. All Rights Reserved.
  * Distributed under the terms of the MIT License.
  *
  * Authors:
@@ -10,6 +10,7 @@
 #include "ColorSelector.h"
 
 #include <InterfaceDefs.h>
+#include <PickerProtocol.h>
 #include <Point.h>
 #include <Size.h>
 #include <Window.h>
@@ -17,8 +18,7 @@
 
 ColorSelector::ColorSelector()
 	:
-	BControl("ColorSelector", "", new BMessage(MSG_COLOR_SELECTOR),
-		B_WILL_DRAW),
+	BView("ColorSelector", B_WILL_DRAW),
 	fIsHidden(false),
 	fMouseOver(false)
 {
@@ -85,12 +85,13 @@ ColorSelector::Invoke(BMessage* message)
 	if (message == NULL)
 		message = Message();
 
-	message->RemoveName("be:value");
-	message->AddData("be:value", B_RGB_COLOR_TYPE, &fColor, sizeof(fColor));
-	message->RemoveName("when");
-	message->AddInt64("when", (int64)system_time());
+	message->AddData("be:value", B_RGB_COLOR_TYPE,
+		&fColor, sizeof(fColor));
+	message->AddInt64("be:when", (int64)system_time());
+	message->AddPointer("be:source", (void*)Parent());
+	message->AddMessenger("be:sender", BMessenger(Parent()));
 
-	return BControl::Invoke(message);
+	return BInvoker::Invoke(message);
 }
 
 
@@ -100,15 +101,15 @@ ColorSelector::MouseDown(BPoint where)
 	if (fIsHidden)
 		return;
 
-	Window()->Activate();
-	Invoke();
+	BMessage message(MSG_COLOR_SELECTOR);
+	ColorSelector::Invoke(&message);
 
-	BControl::MouseDown(where);
+	BView::MouseDown(where);
 }
 
 
 void
-ColorSelector::MouseMoved(BPoint where, uint32 code, const BMessage *message)
+ColorSelector::MouseMoved(BPoint where, uint32 code, const BMessage* message)
 {
 	if (fIsHidden)
 		return;
@@ -127,6 +128,14 @@ ColorSelector::MouseMoved(BPoint where, uint32 code, const BMessage *message)
 
 	Invalidate(INDICATOR_RECT);
 }
+
+
+void
+ColorSelector::MouseUp(BPoint where)
+{
+	BView::MouseUp(where);
+}
+
 
 
 void
@@ -155,21 +164,9 @@ ColorSelector::IsHidden()
 
 
 rgb_color
-ColorSelector::GetColor() const
+ColorSelector::Color() const
 {
 	return fColor;
-}
-
-
-void
-ColorSelector::SetColor(long int c)
-{
-	rgb_color color;
-	color.red   = (c >> 16) & 255;
-	color.green = (c >> 8) & 255;
-	color.blue  = c & 255;
-
-	SetColor(color);
 }
 
 
@@ -181,5 +178,3 @@ ColorSelector::SetColor(rgb_color color)
 	if (Window() && !IsHidden())
 		Draw(COLOR_RECT);
 }
-
-

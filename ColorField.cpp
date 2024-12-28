@@ -122,6 +122,10 @@ ColorField::Invoke(BMessage *message)
 	message->AddFloat("value", v1);
 	message->AddFloat("value", v2);
 
+	message->AddInt64("be:when", (int64)system_time());
+	message->AddPointer("be:source", (void*)Parent());
+	message->AddMessenger("be:sender", BMessenger(Parent()));
+
 	return BControl::Invoke(message);
 }
 

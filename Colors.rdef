@@ -1,7 +1,7 @@
 
-resource app_signature "application/x-vnd.Haiku-ColorsPicker";
+resource app_signature "application/vnd.de.pecora-Colors!";
 
-resource app_name_catalog_entry "x-vnd.Haiku-ColorsPicker";
+resource app_name_catalog_entry "vnd.de.pecora-Colors!";
 
 resource app_version {
 	major  = 3,
@@ -9,10 +9,10 @@ resource app_version {
 	minor  = 0,
 
 	variety = B_APPV_FINAL,
-	internal = 2,
+	internal = 3,
 
-	short_info = "Colors! picker",
-	long_info = "Colors! ©2001-2008 Werner Freytag ©2009-2021 John Scipione."
+	short_info = "Colors! as a color picker",
+	long_info = "Colors! ©2001-2008 Werner Freytag ©2009-2023 John Scipione."
 };
 
 resource app_flags B_MULTIPLE_LAUNCH | B_BACKGROUND_APP;

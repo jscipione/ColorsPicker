@@ -1,4 +1,5 @@
 /*
+ * Copyright 2012-2023 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag.
  * Distributed under the terms of the MIT License.
@@ -72,10 +73,11 @@ private:
 			float*				fPointer1;
 			float*				fPointer2;
 
-			bool				fMouseDown;
+			int32				fMouseButtons;
 			BPoint				fMouseOffset;
 
 			bool				fRequiresUpdate;
+			bool				fInitialColorSet;
 
 			ColorField*			fColorField;
 			ColorSlider*		fColorSlider;

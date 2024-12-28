@@ -29,7 +29,7 @@
 
 
 static const char* kSettingsFileName = "Colors!_settings";
-static const char* kAppSig = "application/x-vnd.Haiku-ColorsPicker";
+static const char* kAppSig = "application/vnd.de.pecora-Colors!";
 
 
 ColorsApplication::ColorsApplication()
@@ -48,12 +48,13 @@ ColorsApplication::~ColorsApplication()
 void
 ColorsApplication::AboutRequested()
 {
-	(new BAlert("About", "Colors! 2.3\n\n"
-		"©2009-2013 John Scipione.\n"
+	(new BAlert("About", "Colors! 3.0\n\n"
+		"©2009-2023 John Scipione.\n"
 		"©2001-2008 Werner Freytag\n"
 		"Colors! icon by meanwhile\n\n"
 		"History\n"
-		"    3.0 (Sep 7, 2021) Make Colors! a modular color picker.\n"
+		"    3.0 (May 9, 2023) Integrate Colors! as a system color picker. \n"
+		"    2.9 (Sep 7, 2021) Make Colors! into a modular color picker.\n"
 		"    2.3 (Feb 23, 2013) Remove the ForeBackSelector control and "
 		"replace it with more color containers.\n"
 		"    2.2 (Dec 1, 2012) Added web-safe selector control. Degree and % "
@@ -82,8 +83,7 @@ ColorsApplication::MessageReceived(BMessage* message)
 		// This is the initial open message that ModuleProxy::Invoke
 		// is sending us. Pass it on to the new color picker dialog
 		// where all the details will be found.
-		fColorsWindow = new ColorsWindow(new ColorsView(),
-			message, BColorPickerPanel::B_CELLS_2x20);
+		fColorsWindow = new ColorsWindow(new ColorsView(), message);
 	}
 
 	BApplication::MessageReceived(message);
@@ -167,30 +167,31 @@ ColorsApplication::_InitSettingsFile(BFile* file, bool write)
 {
 	// find user settings directory
 	BPath prefsPath;
-	status_t ret = find_directory(B_USER_SETTINGS_DIRECTORY, &prefsPath);
-	if (ret < B_OK)
-		return ret;
+	status_t result = find_directory(B_USER_SETTINGS_DIRECTORY, &prefsPath);
+	if (result != B_OK)
+		return result;
 
-	ret = prefsPath.Append(kSettingsFileName);
-	if (ret < B_OK)
-		return ret;
+	BPath filePath(prefsPath);
+	result = filePath.Append(kSettingsFileName);
+	if (result != B_OK)
+		return result;
 
 	if (write) {
-		ret = file->SetTo(prefsPath.Path(),
+		result = file->SetTo(filePath.Path(),
 			B_CREATE_FILE | B_ERASE_FILE | B_WRITE_ONLY);
 	} else
-		ret = file->SetTo(prefsPath.Path(), B_READ_ONLY);
+		result = file->SetTo(filePath.Path(), B_READ_ONLY);
 
-	return ret;
+	return result;
 }
 
 
 extern "C" BColorPickerPanel*
 instantiate_color_picker(BView* view, BMessage* message,
-	BColorPickerPanel::color_cell_layout layout, window_look, window_feel,
-	uint32 flags, uint32 workspace)
+	BColorPickerPanel::color_cell_layout layout, const char* name,
+	window_look look, window_feel feel, uint32 flags, uint32 workspace)
 {
-	return new ColorsWindow((ColorsView*)view, message, layout);
+	return new ColorsWindow((ColorsView*)view, message);
 }
 
 

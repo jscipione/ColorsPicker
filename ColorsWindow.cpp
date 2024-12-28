@@ -1,4 +1,5 @@
 /*
+ * Copyright 2013-2023 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag.
  * Distributed under the terms of the MIT License.
@@ -23,10 +24,10 @@
 #include "ColorsView.h"
 
 
-ColorsWindow::ColorsWindow(ColorsView* view, BMessage* message,
-	BColorPickerPanel::color_cell_layout layout)
+ColorsWindow::ColorsWindow(ColorsView* view, BMessage* message)
 	:
-	BColorPickerPanel(view, message, layout),
+	BColorPickerPanel((BView*)view, message, BColorPickerPanel::B_CELLS_2x20,
+		"Colors!"),
 	fColorsView(view)
 {
 	BMessage* settings = static_cast<ColorsApplication*>(be_app)->Settings();
