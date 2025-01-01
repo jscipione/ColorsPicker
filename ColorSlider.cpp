@@ -156,8 +156,8 @@ ColorSlider::Invoke(BMessage* message)
 			break;
 	}
 
-	message->AddInt64("be:when", (int64)system_time());
-	message->AddPointer("be:source", (void*)Parent());
+	message->AddInt64("when", (int64)system_time());
+	message->AddPointer("source", (void*)Parent());
 	message->AddMessenger("be:sender", BMessenger(Parent()));
 
 	return BControl::Invoke(message);

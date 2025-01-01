@@ -99,8 +99,8 @@ ColorPreview::Invoke(BMessage*)
 	size_t size = sizeof(color);
 	BMessage update(B_VALUE_CHANGED);
 	update.AddData("be:value", B_RGB_COLOR_TYPE, &color, size);
-	update.AddInt64("be:when", (int64)system_time());
-	update.AddPointer("be:source", (void*)Parent());
+	update.AddInt64("when", (int64)system_time());
+	update.AddPointer("source", (void*)Parent());
 	update.AddMessenger("be:sender", BMessenger(Parent()));
 
 	return Window()->PostMessage(&update);

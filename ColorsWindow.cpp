@@ -1,12 +1,14 @@
 /*
- * Copyright 2013-2023 John Scipione. All Rights Reserved.
+ * Copyright 2013-2024 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag.
  * Distributed under the terms of the MIT License.
  *
  * Original Author:
  *		Werner Freytag <freytag@gmx.de>
+ *
  * Authors:
+ *		Stephan Aßmus <superstippi@gmx.de>
  *		John Scipione <jscipione@gmail.com>
  */
 
@@ -26,40 +28,32 @@
 
 ColorsWindow::ColorsWindow(ColorsView* view, BMessage* message)
 	:
-	BColorPickerPanel((BView*)view, message, BColorPickerPanel::B_CELLS_2x20,
-		"Colors!"),
+	BColorPickerPanel((BView*)view, message, BColorPickerPanel::B_CELLS_2x20, "Colors!"),
 	fColorsView(view)
 {
 	BMessage* settings = static_cast<ColorsApplication*>(be_app)->Settings();
 
-#if 0
-	BPoint where;
-	if (settings->FindPoint("window_position", &where) < B_OK)
-		where = BPoint(200.0, 100.0);
-
-	MoveTo(where);
-#endif
-
 	bool windowFloating;
-	if (settings->FindBool("window_floating", &windowFloating) == B_OK
-		&& windowFloating) {
+	if (settings->FindBool("window_floating", &windowFloating) == B_OK && windowFloating)
 		SetFeel(B_FLOATING_ALL_WINDOW_FEEL);
-	} else
+	else
 		SetFeel(B_NORMAL_WINDOW_FEEL);
 
 	bool windowAcceptsFirstClick;
-	if (settings->FindBool("window_accept_first_click",
-			&windowAcceptsFirstClick) == B_OK && windowAcceptsFirstClick) {
+	if (settings->FindBool("window_accept_first_click", &windowAcceptsFirstClick) == B_OK
+		&& windowAcceptsFirstClick) {
 		SetFlags(Flags() | B_WILL_ACCEPT_FIRST_CLICK);
-	} else
+	} else {
 		SetFlags(Flags() & ~B_WILL_ACCEPT_FIRST_CLICK);
+	}
 
 	bool windowAllWorkspaces;
-	if (settings->FindBool("window_all_workspaces",
-			&windowAllWorkspaces) == B_OK && windowAllWorkspaces) {
+	if (settings->FindBool("window_all_workspaces", &windowAllWorkspaces) == B_OK
+		&& windowAllWorkspaces) {
 		SetWorkspaces(B_ALL_WORKSPACES);
-	} else
+	} else {
 		SetWorkspaces(B_CURRENT_WORKSPACE);
+	}
 }
 
 
@@ -69,22 +63,14 @@ ColorsWindow::~ColorsWindow()
 
 	BMessage* settings = static_cast<ColorsApplication*>(be_app)->Settings();
 
-#if 0
-	settings->RemoveName("window_position");
-	settings->AddPoint("window_position", Frame().LeftTop());
-#endif
-
 	settings->RemoveName("window_floating");
-	settings->AddBool("window_floating",
-		Feel() == B_FLOATING_ALL_WINDOW_FEEL);
+	settings->AddBool("window_floating", Feel() == B_FLOATING_ALL_WINDOW_FEEL);
 
 	settings->RemoveName("window_accept_first_click");
-	settings->AddBool("window_accept_first_click",
-		Flags() & B_WILL_ACCEPT_FIRST_CLICK);
+	settings->AddBool("window_accept_first_click", Flags() & B_WILL_ACCEPT_FIRST_CLICK);
 
 	settings->RemoveName("window_all_workspaces");
-	settings->AddBool("window_all_workspaces",
-		Workspaces() == B_ALL_WORKSPACES);
+	settings->AddBool("window_all_workspaces", Workspaces() == B_ALL_WORKSPACES);
 }
 
 
@@ -124,28 +110,13 @@ ColorsWindow::MessageReceived(BMessage* message)
 			BMenuItem* selectedItem = menu->Go(where);
 
 			if (selectedItem == item[0]) {
-				BMessage* settings
-					= static_cast<ColorsApplication*>(be_app)->Settings();
-				if (!settings->FindBool("floating_msg_showed")) {
-					(new BAlert("Information",
-						"Be aware of the following restrictions "
-						"on the 'Always on top' mode:\n"
-						"\n"
-						"· You cannot minimize the window.\n"
-						"· The window does not appear in Deskbar.\n"
-						"\nUnfortunately there is no way to change this.",
-						"Thanks for the information"))->Go();
-
-					settings->AddBool("floating_msg_showed", true);
-				}
-
-				SetFeel(Feel() == B_FLOATING_ALL_WINDOW_FEEL
-					? B_NORMAL_WINDOW_FEEL : B_FLOATING_ALL_WINDOW_FEEL);
+				bool floating = Feel() == B_FLOATING_ALL_WINDOW_FEEL;
+				SetFeel(floating ? B_NORMAL_WINDOW_FEEL : B_FLOATING_ALL_WINDOW_FEEL);
 			} else if (selectedItem == item[1]) {
 				SetFlags(Flags() ^ B_WILL_ACCEPT_FIRST_CLICK);
 			} else if (selectedItem == item[2]) {
-				SetWorkspaces(Workspaces() == B_ALL_WORKSPACES
-					? B_CURRENT_WORKSPACE : B_ALL_WORKSPACES);
+				bool all = Workspaces() == B_ALL_WORKSPACES;
+				SetWorkspaces(all ? B_CURRENT_WORKSPACE : B_ALL_WORKSPACES);
 			} else if (selectedItem == item[4]) {
 				static_cast<ColorsApplication*>(be_app)->AboutRequested();
 			}

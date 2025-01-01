@@ -29,7 +29,7 @@
 
 
 static const char* kSettingsFileName = "Colors!_settings";
-static const char* kAppSig = "application/vnd.de.pecora-Colors!";
+static const char* kAppSig = "application/x-vnd.de.pecora-Colors!";
 
 
 ColorsApplication::ColorsApplication()
@@ -49,12 +49,13 @@ void
 ColorsApplication::AboutRequested()
 {
 	(new BAlert("About", "Colors! 3.0\n\n"
-		"©2009-2023 John Scipione.\n"
+		"©2009-2024 John Scipione\n"
 		"©2001-2008 Werner Freytag\n"
 		"Colors! icon by meanwhile\n\n"
 		"History\n"
-		"    3.0 (May 9, 2023) Integrate Colors! as a system color picker. \n"
-		"    2.9 (Sep 7, 2021) Make Colors! into a modular color picker.\n"
+		"	 3.0 (Dec 31, 2024) Finalize Colors! as a system color picker. \n"
+		"    2.9 (May 9, 2023) Integrate Colors! as a system color picker. \n"
+		"    2.8 (Sep 7, 2021) Make Colors! into a modular color picker.\n"
 		"    2.3 (Feb 23, 2013) Remove the ForeBackSelector control and "
 		"replace it with more color containers.\n"
 		"    2.2 (Dec 1, 2012) Added web-safe selector control. Degree and % "
@@ -95,14 +96,12 @@ ColorsApplication::ReadyToRun()
 {
 	_LoadSettings();
 
-	if (fColorsWindow != NULL)
+	if (fColorsWindow != NULL) {
 		fColorsWindow->Show();
-	else {
+	} else {
 		// create a window if run directly
-		BWindow* window = new BWindow(BRect(100, 100, 100, 100),
-			"Colors!", B_TITLED_WINDOW, B_NOT_ZOOMABLE
-				| B_NOT_RESIZABLE | B_QUIT_ON_WINDOW_CLOSE
-				| B_AUTO_UPDATE_SIZE_LIMITS);
+		BWindow* window = new BWindow(BRect(100, 100, 100, 100), "Colors!", B_TITLED_WINDOW,
+			B_NOT_ZOOMABLE | B_NOT_RESIZABLE | B_QUIT_ON_WINDOW_CLOSE | B_AUTO_UPDATE_SIZE_LIMITS);
 
 		BLayoutBuilder::Group<>(window, B_VERTICAL, 0)
 			.Add(new ColorsView())
@@ -129,15 +128,14 @@ ColorsApplication::_LoadSettings()
 {
 	// locate preferences file
 	BFile prefsFile;
-	if (_InitSettingsFile(&prefsFile, false) < B_OK) {
+	if (_InitSettingsFile(&prefsFile, false) != B_OK) {
 		printf("no preference file found.\n");
 		return;
 	}
 
 	// unflatten settings data
-	if (fSettings.Unflatten(&prefsFile) < B_OK) {
+	if (fSettings.Unflatten(&prefsFile) != B_OK)
 		printf("error unflattening settings.\n");
-	}
 }
 
 
@@ -147,16 +145,16 @@ ColorsApplication::_SaveSettings()
 	// flatten entire archive and write to settings file
 	BFile prefsFile;
 	status_t ret = _InitSettingsFile(&prefsFile, true);
-	if (ret < B_OK) {
-		fprintf(stderr, "ColorsApplication::_SaveSettings() - "
-			"error creating file: %s\n", strerror(ret));
+	if (ret != B_OK) {
+		fprintf(stderr, "ColorsApplication::_SaveSettings() - error creating file: %s\n",
+			strerror(ret));
 		return;
 	}
 
 	ret = fSettings.Flatten(&prefsFile);
-	if (ret < B_OK) {
-		fprintf(stderr, "ColorsApplication::_SaveSettings() - error flattening "
-			"to file: %s\n", strerror(ret));
+	if (ret != B_OK) {
+		fprintf(stderr, "ColorsApplication::_SaveSettings() - error flattening to file: %s\n",
+			strerror(ret));
 		return;
 	}
 }
@@ -176,11 +174,10 @@ ColorsApplication::_InitSettingsFile(BFile* file, bool write)
 	if (result != B_OK)
 		return result;
 
-	if (write) {
-		result = file->SetTo(filePath.Path(),
-			B_CREATE_FILE | B_ERASE_FILE | B_WRITE_ONLY);
-	} else
-		result = file->SetTo(filePath.Path(), B_READ_ONLY);
+	if (write)
+		result = file->SetTo(filePath.Path(), B_CREATE_FILE | B_ERASE_FILE | B_WRITE_ONLY);
+	else
+		result = file->SetTo(filePath.Path(), B_CREATE_FILE | B_READ_ONLY);
 
 	return result;
 }

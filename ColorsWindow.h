@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2023 John Scipione All Rights Reserved.
+ * Copyright 2013-2024 John Scipione. All Rights Reserved.
  * Copyright 2009-2013 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag.
  * Distributed under the terms of the MIT License.

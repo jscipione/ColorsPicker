@@ -1,11 +1,12 @@
 /*
- * Copyright 2012-2023 John Scipione. All Rights Reserved.
+ * Copyright 2012-2024 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag. All Rights Reserved.
  * Distributed under the terms of the MIT License.
  *
  * Original Author:
  *		Werner Freytag <freytag@gmx.de>
+ *
  * Authors:
  *		Stephan Aßmus <superstippi@gmx.de>
  *		John Scipione <jscipione@gmail.com>
@@ -89,12 +90,10 @@ ColorsView::ColorsView()
 	const char *title[] = { "H", "S", "V", "R", "G", "B" };
 
 	for (int32 i = 0; i < 6; ++i) {
-		fRadioButton[i] = new BRadioButton(NULL, title[i],
-			new BMessage(MSG_RADIOBUTTON + i));
+		fRadioButton[i] = new BRadioButton(NULL, title[i], new BMessage(MSG_RADIOBUTTON + i));
 		fRadioButton[i]->SetExplicitMinSize(BSize(39.0f, B_SIZE_UNSET));
 		fRadioButton[i]->SetExplicitMaxSize(BSize(39.0f, B_SIZE_UNSET));
-		fRadioButton[i]->SetExplicitAlignment(BAlignment(B_ALIGN_LEFT,
-			B_ALIGN_VERTICAL_CENTER));
+		fRadioButton[i]->SetExplicitAlignment(BAlignment(B_ALIGN_LEFT, B_ALIGN_VERTICAL_CENTER));
 
 		fTextControl[i] = new BTextControl(NULL, NULL, NULL,
 			new BMessage(MSG_TEXTCONTROL + i));
@@ -132,8 +131,7 @@ ColorsView::ColorsView()
 			break;
 	}
 
-	fHexTextControl = new BTextControl(NULL, "#", NULL,
-		new BMessage(MSG_HEXTEXTCONTROL));
+	fHexTextControl = new BTextControl(NULL, "#", NULL, new BMessage(MSG_HEXTEXTCONTROL));
 
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
 		.AddGlue()
@@ -211,8 +209,7 @@ ColorsView::AttachedToWindow()
 		fTextControl[i]->SetTarget(this);
 
 		BTextView* textView = fTextControl[i]->TextView();
-		textView->SetExplicitAlignment(BAlignment(B_ALIGN_LEFT,
-			B_ALIGN_VERTICAL_CENTER));
+		textView->SetExplicitAlignment(BAlignment(B_ALIGN_LEFT, B_ALIGN_VERTICAL_CENTER));
 		float textWidth = textView->StringWidth("99999");
 		textView->SetExplicitSize(BSize(textWidth, B_SIZE_UNSET));
 		// Only permit (max 3) decimal inputs
@@ -233,10 +230,8 @@ ColorsView::AttachedToWindow()
 	// Only permit (max 6) hexidecimal inputs
 	hexTextView->SetMaxBytes(6);
 	for (int32 j = 32; j < 255; ++j) {
-		if (!((j >= '0' && j <= '9') || (j >= 'a' && j <= 'f')
-			|| (j >= 'A' && j <= 'F'))) {
+		if (!((j >= '0' && j <= '9') || (j >= 'a' && j <= 'f') || (j >= 'A' && j <= 'F')))
 			hexTextView->DisallowChar(j);
-		}
 	}
 
 	_UpdateTextControls();
@@ -254,6 +249,12 @@ ColorsView::MessageReceived(BMessage* message)
 		if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) == B_OK
 			&& message->FindData(name, type, (const void**)&color, &size) == B_OK) {
 			SetColor(*color);
+
+			message->AddData("be:value", B_RGB_COLOR_TYPE, &color, sizeof(color));
+			message->AddMessenger("be:sender", BMessenger(this));
+			message->AddPointer("source", (void*)this);
+			message->AddInt64("when", (int64)system_time());
+			Window()->PostMessage(message);
 		}
 		return;
 	}
@@ -395,8 +396,7 @@ ColorsView::MessageReceived(BMessage* message)
 			rgb_color* color;
 			ssize_t size;
 			if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) == B_OK
-				&& message->FindData(name, type,
-					(const void**)&color, &size) == B_OK) {
+				&& message->FindData(name, type, (const void**)&color, &size) == B_OK) {
 				color->alpha = 255;
 				SetColor(*color);
 				_ForwardColorChangeToWindow(*color);
@@ -420,6 +420,12 @@ ColorsView::MessageReceived(BMessage* message)
 					fColorPreview->SetNewColor(*color);
 					fInitialColorSet = true;
 					break;
+				}
+
+				BMessenger messenger;
+				if (message->FindMessenger("be:sender", &messenger) == B_OK
+					&& messenger != BMessenger(Window())) {
+					_ForwardColorChangeToWindow(*color);
 				}
 			}
 			break;
@@ -635,9 +641,9 @@ ColorsView::_ForwardColorChangeToWindow(rgb_color color)
 {
 	BMessage forward(B_VALUE_CHANGED);
 	forward.AddData("be:value", B_RGB_COLOR_TYPE, &color, sizeof(color));
-	forward.AddInt64("when", (int64)system_time());
-	forward.AddPointer("be:source", (void*)this);
 	forward.AddMessenger("be:sender", BMessenger(this));
+	forward.AddPointer("source", this);
+	forward.AddInt64("when", (int64)system_time());
 	Window()->PostMessage(&forward);
 }
 
@@ -667,8 +673,9 @@ ColorsView::_UpdateTextControls()
 	sprintf(string, "%d", round(fBlue * 255));
 	fTextControl[5]->TextView()->SetText(string);
 
-	sprintf(string, "%.6X", (round(fRed * 255) << 16) | (round(fGreen * 255) << 8)
-		| round(fBlue * 255));
+	sprintf(string, "%.6X", (round(fRed * 255) << 16)
+		| (round(fGreen * 255) << 8)
+		| (round(fBlue * 255)));
 	fHexTextControl->TextView()->SetText(string);
 
 	Window()->EnableUpdates();
