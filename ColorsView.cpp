@@ -250,11 +250,11 @@ ColorsView::MessageReceived(BMessage* message)
 			&& message->FindData(name, type, (const void**)&color, &size) == B_OK) {
 			SetColor(*color);
 
-			message->AddData("be:value", B_RGB_COLOR_TYPE, &color, sizeof(color));
-			message->AddMessenger("be:sender", BMessenger(this));
-			message->AddPointer("source", (void*)this);
-			message->AddInt64("when", (int64)system_time());
-			Window()->PostMessage(message);
+			BMessenger messenger;
+			if (message->FindMessenger("be:sender", &messenger) == B_OK
+				&& messenger != BMessenger(Window())) {
+				_ForwardColorChangeToWindow(*color);
+			}
 		}
 		return;
 	}
