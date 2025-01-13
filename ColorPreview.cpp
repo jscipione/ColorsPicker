@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 John Scipione. All Rights Reserved.
+ * Copyright 2012-2024 John Scipione. All Rights Reserved.
  * Copyright 2009-2012 Haiku, Inc. All Rights Reserved.
  * Copyright 2001-2008 Werner Freytag.
  * Distributed under the terms of the MIT License.
@@ -33,11 +33,10 @@
 ColorPreview::ColorPreview()
 	:
 	BControl("color preview", "", new BMessage(MSG_COLOR_PREVIEW), B_WILL_DRAW),
-	fMouseDown(false),
-	fMessageRunner(0)
+	fMessageRunner(NULL)
 {
-	SetExplicitMinSize(BSize(56.0, 50.0));
-	SetExplicitMaxSize(BSize(56.0, 50.0));
+	SetExplicitMinSize(BSize(56, 50));
+	SetExplicitMaxSize(BSize(56, 50));
 	SetExplicitAlignment(BAlignment(B_ALIGN_RIGHT, B_ALIGN_VERTICAL_CENTER));
 }
 
@@ -50,98 +49,103 @@ ColorPreview::~ColorPreview()
 void
 ColorPreview::Draw(BRect updateRect)
 {
-	rgb_color background = ui_color(B_PANEL_BACKGROUND_COLOR);
-	rgb_color shadow = tint_color(background, B_DARKEN_1_TINT);
-	rgb_color darkShadow = tint_color(background, B_DARKEN_3_TINT);
-	rgb_color light = tint_color(background, B_LIGHTEN_MAX_TINT);
+	rgb_color bg = ui_color(B_PANEL_BACKGROUND_COLOR);
+	rgb_color outer = tint_color(bg, B_DARKEN_1_TINT);
+	rgb_color inner = tint_color(bg, B_DARKEN_3_TINT);
+	rgb_color light = tint_color(bg, B_LIGHTEN_MAX_TINT);
 
 	BRect bounds(Bounds());
 
 	BeginLineArray(4);
 	AddLine(BPoint(bounds.left, bounds.bottom),
-		BPoint(bounds.left, bounds.top), shadow);
-	AddLine(BPoint(bounds.left + 1.0, bounds.top),
-		BPoint(bounds.right, bounds.top), shadow);
-	AddLine(BPoint(bounds.right, bounds.top + 1.0),
+		BPoint(bounds.left, bounds.top), outer);
+	AddLine(BPoint(bounds.left + 1, bounds.top),
+		BPoint(bounds.right, bounds.top), outer);
+	AddLine(BPoint(bounds.right, bounds.top + 1),
 		BPoint(bounds.right, bounds.bottom), light);
-	AddLine(BPoint(bounds.right - 1.0, bounds.bottom),
-		BPoint(bounds.left + 1.0, bounds.bottom), light);
+	AddLine(BPoint(bounds.right - 1, bounds.bottom),
+		BPoint(bounds.left + 1, bounds.bottom), light);
 	EndLineArray();
-	bounds.InsetBy(1.0, 1.0);
+	bounds.InsetBy(1, 1);
 
 	BeginLineArray(4);
 	AddLine(BPoint(bounds.left, bounds.bottom),
-		BPoint(bounds.left, bounds.top), darkShadow);
-	AddLine(BPoint(bounds.left + 1.0, bounds.top),
-		BPoint(bounds.right, bounds.top), darkShadow);
-	AddLine(BPoint(bounds.right, bounds.top + 1.0),
-		BPoint(bounds.right, bounds.bottom), background);
-	AddLine(BPoint(bounds.right - 1.0, bounds.bottom),
-		BPoint(bounds.left + 1.0, bounds.bottom), background);
+		BPoint(bounds.left, bounds.top), inner);
+	AddLine(BPoint(bounds.left + 1, bounds.top),
+		BPoint(bounds.right, bounds.top), inner);
+	AddLine(BPoint(bounds.right, bounds.top + 1),
+		BPoint(bounds.right, bounds.bottom), bg);
+	AddLine(BPoint(bounds.right - 1, bounds.bottom),
+		BPoint(bounds.left + 1, bounds.bottom), bg);
 	EndLineArray();
-	bounds.InsetBy(1.0, 1.0);
+	bounds.InsetBy(1, 1);
 
 	bounds.bottom = bounds.top + bounds.Height() / 2.0;
 	SetHighColor(fColor);
 	FillRect(bounds);
 
 	bounds.top = bounds.bottom + 1;
-	bounds.bottom = Bounds().bottom - 2.0;
+	bounds.bottom = Bounds().bottom - 2;
 	SetHighColor(fOldColor);
 	FillRect(bounds);
 }
 
 
 status_t
-ColorPreview::Invoke(BMessage*)
+ColorPreview::Invoke(BMessage* message)
 {
-	rgb_color color = fColor;
-	size_t size = sizeof(color);
-	BMessage update(B_VALUE_CHANGED);
-	update.AddData("be:value", B_RGB_COLOR_TYPE, &color, size);
-	update.AddInt64("when", (int64)system_time());
-	update.AddPointer("source", (void*)Parent());
-	update.AddMessenger("be:sender", BMessenger(Parent()));
+	if (message == NULL)
+		message = new BMessage(B_PASTE);
 
-	return Window()->PostMessage(&update);
+	message->AddData("RGBColor", B_RGB_COLOR_TYPE, &fColor, sizeof(fColor));
+
+	return BControl::Invoke(message);
 }
 
 
 void
 ColorPreview::MessageReceived(BMessage* message)
 {
-	if (message->what == MSG_MESSAGERUNNER) {
-		BPoint where;
-		uint32 buttons;
-		GetMouse(&where, &buttons);
-
-		_DragColor(where);
-	} else if (message->WasDropped()) {
+	if (message->WasDropped()) {
 		char* name;
 		type_code type;
-		if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) != B_OK)
-			return BControl::MessageReceived(message);
-
 		rgb_color* color;
 		ssize_t size;
-		message->FindData(name, type, (const void**)&color, &size);
+		if (message->GetInfo(B_RGB_COLOR_TYPE, 0, &name, &type) == B_OK
+			&& message->FindData(name, type, (const void**)&color, &size)
+				== B_OK) {
+			BPoint where;
+			bool droppedOnNewArea = false;
+			if (message->FindPoint("_drop_point_", &where) == B_OK) {
+				ConvertFromScreen(&where);
+				if (where.y > Bounds().top + Bounds().Height() / 2)
+					droppedOnNewArea = true;
+			}
 
-		BPoint where;
-		bool droppedOnNewArea = false;
-		if (message->FindPoint("_drop_point_", &where) == B_OK) {
-			ConvertFromScreen(&where);
-			if (where.y > Bounds().top + (Bounds().IntegerHeight() >> 1))
-				droppedOnNewArea = true;
+			if (droppedOnNewArea)
+				SetNewColor(*color);
+			else
+				SetColor(*color);
+
+			Invoke();
+		}
+	}
+
+	switch (message->what) {
+		case MSG_MESSAGERUNNER:
+		{
+			BPoint where;
+			uint32 buttons;
+			GetMouse(&where, &buttons);
+
+			_DragColor(where);
+			break;
 		}
 
-		if (droppedOnNewArea)
-			SetNewColor(*color);
-		else
-			SetColor(*color);
-
-		Window()->PostMessage(message);
-	} else
-		BControl::MessageReceived(message);
+		default:
+			BControl::MessageReceived(message);
+			break;
+	}
 }
 
 
@@ -150,29 +154,32 @@ ColorPreview::MouseDown(BPoint where)
 {
 	Window()->Activate();
 
-	fMouseDown = true;
 	fMessageRunner = new BMessageRunner(this, new BMessage(MSG_MESSAGERUNNER),
 		300000, 1);
 
 	SetMouseEventMask(B_POINTER_EVENTS,
 		B_SUSPEND_VIEW_FOCUS | B_LOCK_WINDOW_FOCUS);
 
-	BRect oldRect = Bounds().InsetByCopy(2.0, 2.0);
-	oldRect.top = oldRect.bottom / 2 + 1;
+	BRect oldRect = Bounds().InsetByCopy(2, 2);
+	oldRect.top = oldRect.bottom / 2.0 + 1;
 
 	if (oldRect.Contains(where)) {
 		fColor = fOldColor;
-		Draw(Bounds());
+		Invalidate();
 		Invoke();
 	}
+
+	BControl::MouseDown(where);
 }
 
 
 void
-ColorPreview::MouseMoved(BPoint where, uint32 code, const BMessage* message)
+ColorPreview::MouseMoved(BPoint where, uint32 code, const BMessage* dragMessage)
 {
-	if (fMouseDown)
+	if (fMessageRunner != NULL)
 		_DragColor(where);
+
+	BControl::MouseMoved(where, code, dragMessage);
 }
 
 
@@ -180,9 +187,8 @@ void
 ColorPreview::MouseUp(BPoint where)
 {
 	delete fMessageRunner;
-	fMessageRunner = 0;
+	fMessageRunner = NULL;
 
-	fMouseDown = false;
 	BControl::MouseUp(where);
 }
 
@@ -215,15 +221,14 @@ void
 ColorPreview::_DragColor(BPoint where)
 {
 	BString hexStr;
-	hexStr.SetToFormat("#%.2X%.2X%.2X", fColor.red, fColor.green,
-		fColor.blue);
+	hexStr.SetToFormat("#%.2X%.2X%.2X", fColor.red, fColor.green, fColor.blue);
 
 	BMessage message(B_PASTE);
 	message.AddData("text/plain", B_MIME_TYPE, hexStr.String(),
 		hexStr.Length());
 	message.AddData("RGBColor", B_RGB_COLOR_TYPE, &fColor, sizeof(fColor));
 
-	BRect rect(0.0f, 0.0f, 16.0f, 16.0f);
+	BRect rect(0, 0, 16, 16);
 
 	BBitmap* bitmap = new BBitmap(rect, B_RGB32, true);
 	bitmap->Lock();
@@ -239,18 +244,23 @@ ColorPreview::_DragColor(BPoint where)
 
 	view->SetHighColor(0, 0, 0, 100);
 	view->FillRect(rect);
-	rect.OffsetBy(-1.0f, -1.0f);
+	rect.OffsetBy(-1, -1);
 
-	view->SetHighColor(std::min(255, (int)(1.2 * fColor.red + 40)),
-		std::min(255, (int)(1.2 * fColor.green + 40)),
-		std::min(255, (int)(1.2 * fColor.blue + 40)));
+	int32 red = std::min(255, (int)(1.2 * fColor.red + 40));
+	int32 green = std::min(255, (int)(1.2 * fColor.green + 40));
+	int32 blue = std::min(255, (int)(1.2 * fColor.blue + 40));
+
+	view->SetHighColor(red, green, blue);
 	view->StrokeRect(rect);
 
 	++rect.left;
 	++rect.top;
 
-	view->SetHighColor((int32)(0.8 * fColor.red),
-		(int32)(0.8 * fColor.green), (int32)(0.8 * fColor.blue));
+	red = (int32)(0.8 * fColor.red);
+	green = (int32)(0.8 * fColor.green);
+	blue = (int32)(0.8 * fColor.blue);
+
+	view->SetHighColor(red, green, blue);
 	view->StrokeRect(rect);
 
 	--rect.right;
@@ -262,7 +272,7 @@ ColorPreview::_DragColor(BPoint where)
 
 	bitmap->Unlock();
 
-	DragMessage(&message, bitmap, B_OP_ALPHA, BPoint(14.0f, 14.0f));
+	DragMessage(&message, bitmap, B_OP_ALPHA, BPoint(14, 14));
 
 	MouseUp(where);
 }
