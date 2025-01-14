@@ -250,13 +250,12 @@ ColorsView::MessageReceived(BMessage* message)
 			&& message->FindData(name, type, (const void**)&color, &size) == B_OK) {
 			SetColor(*color);
 
-			BMessenger messenger;
-			if (message->FindMessenger("be:sender", &messenger) == B_OK
-				&& messenger != BMessenger(Window())) {
-				_ForwardColorChangeToWindow(*color);
+			BMessenger sender;
+			if (message->FindMessenger("be:sender", &sender) == B_OK
+				&& sender != BMessenger(Window())) {
+				Window()->PostMessage(message);
 			}
 		}
-		return;
 	}
 
 	switch (message->what) {
@@ -422,10 +421,10 @@ ColorsView::MessageReceived(BMessage* message)
 					break;
 				}
 
-				BMessenger messenger;
-				if (message->FindMessenger("be:sender", &messenger) == B_OK
-					&& messenger != BMessenger(Window())) {
-					_ForwardColorChangeToWindow(*color);
+				BMessenger sender;
+				if (message->FindMessenger("be:sender", &sender) == B_OK
+					&& sender != BMessenger(Window())) {
+					Window()->PostMessage(message);
 				}
 			}
 			break;
@@ -655,27 +654,27 @@ ColorsView::_UpdateTextControls()
 
 	char string[5];
 
-	sprintf(string, "%d", round(fHue * 60));
+	sprintf(string, "%ld", lround(fHue * 60));
 	fTextControl[0]->TextView()->SetText(string);
 
-	sprintf(string, "%d", round(fSat * 100));
+	sprintf(string, "%ld", lround(fSat * 100));
 	fTextControl[1]->TextView()->SetText(string);
 
-	sprintf(string, "%d", round(fVal * 100));
+	sprintf(string, "%ld", lround(fVal * 100));
 	fTextControl[2]->TextView()->SetText(string);
 
-	sprintf(string, "%d", round(fRed * 255));
+	sprintf(string, "%ld", lround(fRed * 255));
 	fTextControl[3]->TextView()->SetText(string);
 
-	sprintf(string, "%d", round(fGreen * 255));
+	sprintf(string, "%ld", lround(fGreen * 255));
 	fTextControl[4]->TextView()->SetText(string);
 
-	sprintf(string, "%d", round(fBlue * 255));
+	sprintf(string, "%ld", lround(fBlue * 255));
 	fTextControl[5]->TextView()->SetText(string);
 
-	sprintf(string, "%.6X", (round(fRed * 255) << 16)
-		| (round(fGreen * 255) << 8)
-		| (round(fBlue * 255)));
+	sprintf(string, "%.6X", (lround(fRed * 255) << 16)
+		| (lround(fGreen * 255) << 8)
+		| (lround(fBlue * 255)));
 	fHexTextControl->TextView()->SetText(string);
 
 	Window()->EnableUpdates();
